@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  BOT
+}
+
+enum ChatStatus {
+  active
+  closed
+  waiting_for_admin
+  admin_joined
+}
+
+model User {
+  id        String   @id @default(uuid())
+  ssoId     String   @unique // The ID from IM-SSO
+  username  String   @unique
+  firstName String?
+  lastName  String?
+  avatarUrl String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chatSessions ChatSession[]
+  messages     Message[]
+}
+
+model ChatSession {
+  id        String     @id @default(uuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  status    ChatStatus @default(active)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  messages Message[]
+
+  @@index([userId])
+}
+
+model Message {
+  id            String      @id @default(uuid())
+  chatSessionId String
+  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+  senderId      String? // Null if system message or optimized bot
+  sender        User?       @relation(fields: [senderId], references: [id])
+  content       String
+  isBot         Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+
+  @@index([chatSessionId])
+}
